@@ -29,6 +29,12 @@ export class CreateSaleDto {
   @IsNotEmpty({ message: 'El tipo de venta es requerido' })
   saleType: SaleType;
 
+  @IsString({
+    message: 'El identificador del usuario debe ser una cadena de caracteres',
+  })
+  @IsNotEmpty({ message: 'El identificador del usuario es requerido' })
+  userId: string;
+
   @IsNumber(
     {},
     { message: 'El identificador del cliente debe ser un número válido' },

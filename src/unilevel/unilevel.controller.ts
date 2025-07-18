@@ -5,8 +5,8 @@ import { UnilevelService } from './unilevel.service';
 import { CalculateAmortizationDto } from './dto/calculate-amortizacion-dto';
 import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
+import { FindAllSalesDto } from './dto/find-all-sales.dto';
 
 @Controller()
 export class UnilevelController {
@@ -67,27 +67,18 @@ export class UnilevelController {
     @Payload()
     clientGuarantorDto: CreateClientAndGuarantorDto,
   ) {
-    return this.unilevelService.createClientAndGuarantor({
-      createClient: clientGuarantorDto.createClient,
-      createGuarantor: clientGuarantorDto.createGuarantor,
-      createSecondaryClient: clientGuarantorDto.createSecondaryClient,
-      document: clientGuarantorDto.document,
-      userId: this.EXTERNAL_USER_ID,
-    });
+    return this.unilevelService.createClientAndGuarantor(clientGuarantorDto);
   }
 
   // ============= VENTAS =============
   @MessagePattern({ cmd: 'unilevel.createSale' })
   async createSale(@Payload() createSaleDto: CreateSaleDto) {
-    return this.unilevelService.createSale(
-      createSaleDto,
-      this.EXTERNAL_USER_ID,
-    );
+    return this.unilevelService.createSale(createSaleDto);
   }
 
   @MessagePattern({ cmd: 'unilevel.findAllSales' })
-  async findAllSales(@Payload() paginationDto: PaginationDto) {
-    return this.unilevelService.findAllSales(paginationDto);
+  async findAllSales(@Payload() findAllSalesDto: FindAllSalesDto) {
+    return this.unilevelService.findAllSales(findAllSalesDto);
   }
 
   @MessagePattern({ cmd: 'unilevel.findOneSaleById' })
