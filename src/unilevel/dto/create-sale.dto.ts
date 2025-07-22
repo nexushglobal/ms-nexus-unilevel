@@ -5,6 +5,7 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -108,6 +109,10 @@ export class CreateSaleDto {
       'El número de cuotas de la habilitación urbana debe ser un número entero',
   })
   quantityHuCuotes?: number;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, any>;
 
   // Financiado
   @IsOptional()

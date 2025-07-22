@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Controller, ParseUUIDPipe } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { FindAllLotsDto } from './dto/find-all-lots.dto';
@@ -7,6 +9,7 @@ import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
+import { CreatePaymentSaleDto } from './dto/create-payment-sale.dto';
 
 @Controller()
 export class UnilevelController {
@@ -84,5 +87,45 @@ export class UnilevelController {
   @MessagePattern({ cmd: 'unilevel.findOneSaleById' })
   async findOneSaleById(@Payload('id', ParseUUIDPipe) id: string) {
     return this.unilevelService.findOneSaleById(id);
+  }
+
+  @MessagePattern({ cmd: 'unilevel.createPaymentSale' })
+  async handleCreatePaymentSale(
+    @Payload('saleId', ParseUUIDPipe) saleId: string,
+    @Payload() createPaymentSaleDto: CreatePaymentSaleDto,
+    @Payload('files') files: any[],
+  ) {
+    const deserializedFiles =
+      files?.map((file) => ({
+        ...file,
+        buffer: Buffer.from(file.buffer, 'base64'),
+      })) || [];
+
+    return this.unilevelService.createPaymentSale(
+      saleId,
+      createPaymentSaleDto,
+      deserializedFiles,
+    );
+  }
+
+  @MessagePattern({ cmd: 'unilevel.paidInstallments' })
+  async handlePaidInstallments(
+    @Payload('financingId', ParseUUIDPipe) financingId: string,
+    @Payload('amountPaid') amountPaid: number,
+    @Payload('payments') payments: string[],
+    @Payload('files') files: any[],
+  ) {
+    const deserializedFiles =
+      files?.map((file) => ({
+        ...file,
+        buffer: Buffer.from(file.buffer, 'base64'),
+      })) || [];
+
+    return this.unilevelService.paidInstallments(
+      financingId,
+      amountPaid,
+      payments,
+      deserializedFiles,
+    );
   }
 }

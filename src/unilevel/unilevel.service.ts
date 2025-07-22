@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
 import { HttpAdapter } from 'src/common/interfaces/http-adapter.interface';
 import { ProjectListResponseDto } from './interfaces/project-list.dto';
@@ -21,6 +23,7 @@ import { SaleLoteResponse } from './interfaces/sale-lote-response.interface';
 import { formatSaleResponse } from './helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
+import { CreatePaymentSaleDto } from './dto/create-payment-sale.dto';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -130,6 +133,10 @@ export class UnilevelService extends BaseService<Sale> {
 
   async createSale(createSaleDto: CreateSaleDto): Promise<SaleLoteResponse> {
     const { userId, ...rest } = createSaleDto;
+    rest.metadata = rest.metadata || {
+      service: 'Nexus',
+      exteralUserId: userId,
+    };
     const saleHuertas = await this.httpAdapter.post<SaleResponse>(
       `${this.huertasApiUrl}/api/external/sales`,
       rest,
@@ -165,6 +172,59 @@ export class UnilevelService extends BaseService<Sale> {
   async findOneSaleById(id: string): Promise<SaleResponse> {
     return this.httpAdapter.get<SaleResponse>(
       `${this.huertasApiUrl}/api/external/sales/${id}`,
+      this.huertasApiKey,
+    );
+  }
+
+  createPaymentSale(
+    saleId: string,
+    createPaymentSaleDto: CreatePaymentSaleDto,
+    files: Express.Multer.File[],
+  ) {
+    const formData = new FormData();
+
+    // Agregar datos del pago
+    Object.entries(createPaymentSaleDto).forEach(([key, value]) => {
+      formData.append(key, value.toString());
+    });
+
+    // Agregar archivos
+    if (files && files.length > 0) {
+      files.forEach((file) => {
+        const blob = new Blob([file.buffer], { type: file.mimetype });
+        formData.append('files', blob, file.originalname);
+      });
+    }
+
+    return this.httpAdapter.post(
+      `${this.huertasApiUrl}/api/external/payments/sale/${saleId}`,
+      formData,
+      this.huertasApiKey,
+    );
+  }
+
+  paidInstallments(
+    financingId: string,
+    amountPaid: number,
+    payments: string[],
+    files: Express.Multer.File[],
+  ) {
+    const formData = new FormData();
+
+    formData.append('amountPaid', amountPaid.toString());
+    payments.forEach((payment) => formData.append('payments', payment));
+
+    // Agregar archivos
+    if (files && files.length > 0) {
+      files.forEach((file) => {
+        const blob = new Blob([file.buffer], { type: file.mimetype });
+        formData.append('files', blob, file.originalname);
+      });
+    }
+
+    return this.httpAdapter.post(
+      `${this.huertasApiUrl}/api/external/financing/installments/paid/${financingId}`,
+      formData,
       this.huertasApiKey,
     );
   }
