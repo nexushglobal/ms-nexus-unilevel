@@ -17,17 +17,25 @@ export class ApiFetchAdapter implements HttpAdapter {
   }
 
   async post<T>(url: string, body: any, apiKey?: string): Promise<T> {
-    const headers = this.getHeaders(url, apiKey);
+    const isFormData = body instanceof FormData;
+    const headers = this.getHeaders(url, apiKey, isFormData);
+
     const res = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
+
     return this.handleResponse<T>(res);
   }
 
-  private getHeaders(url: string, apiKey?: string): HeadersInit {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  private getHeaders(
+    url: string,
+    apiKey?: string,
+    isFormData = false,
+  ): HeadersInit {
+    const headers: HeadersInit = {};
+    if (!isFormData) headers['Content-Type'] = 'application/json';
     if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
     return headers;
   }

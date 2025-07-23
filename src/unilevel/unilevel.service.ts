@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
 import { HttpAdapter } from 'src/common/interfaces/http-adapter.interface';
 import { ProjectListResponseDto } from './interfaces/project-list.dto';
@@ -23,7 +21,7 @@ import { SaleLoteResponse } from './interfaces/sale-lote-response.interface';
 import { formatSaleResponse } from './helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
-import { CreatePaymentSaleDto } from './dto/create-payment-sale.dto';
+import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -176,26 +174,18 @@ export class UnilevelService extends BaseService<Sale> {
     );
   }
 
-  createPaymentSale(
+  async createPaymentSale(
     saleId: string,
-    createPaymentSaleDto: CreatePaymentSaleDto,
+    payments: CreateDetailPaymentDto[],
     files: Express.Multer.File[],
   ) {
     const formData = new FormData();
-
-    // Agregar datos del pago
-    Object.entries(createPaymentSaleDto).forEach(([key, value]) => {
-      formData.append(key, value.toString());
+    formData.append('payments', JSON.stringify(payments));
+    // Agrega archivos
+    files.forEach((file) => {
+      const blob = new Blob([file.buffer], { type: file.mimetype });
+      formData.append('files', blob, file.originalname);
     });
-
-    // Agregar archivos
-    if (files && files.length > 0) {
-      files.forEach((file) => {
-        const blob = new Blob([file.buffer], { type: file.mimetype });
-        formData.append('files', blob, file.originalname);
-      });
-    }
-
     return this.httpAdapter.post(
       `${this.huertasApiUrl}/api/external/payments/sale/${saleId}`,
       formData,
@@ -206,21 +196,19 @@ export class UnilevelService extends BaseService<Sale> {
   paidInstallments(
     financingId: string,
     amountPaid: number,
-    payments: string[],
+    payments: CreateDetailPaymentDto[],
     files: Express.Multer.File[],
   ) {
     const formData = new FormData();
 
     formData.append('amountPaid', amountPaid.toString());
-    payments.forEach((payment) => formData.append('payments', payment));
+    formData.append('payments', JSON.stringify(payments));
 
     // Agregar archivos
-    if (files && files.length > 0) {
-      files.forEach((file) => {
-        const blob = new Blob([file.buffer], { type: file.mimetype });
-        formData.append('files', blob, file.originalname);
-      });
-    }
+    files.forEach((file) => {
+      const blob = new Blob([file.buffer], { type: file.mimetype });
+      formData.append('files', blob, file.originalname);
+    });
 
     return this.httpAdapter.post(
       `${this.huertasApiUrl}/api/external/financing/installments/paid/${financingId}`,

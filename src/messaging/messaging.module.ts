@@ -20,7 +20,7 @@ export class MessagingModule {
             transport: Transport.NATS,
             options: {
               servers: [envs.NATS_SERVERS],
-              queue: 'system-auth-gateway-queue',
+              queue: 'ms-nexus-unilevel-queue',
               reconnect: true,
               maxReconnectAttempts: -1,
               reconnectTimeWait: 2000,

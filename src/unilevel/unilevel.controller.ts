@@ -9,7 +9,7 @@ import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
-import { CreatePaymentSaleDto } from './dto/create-payment-sale.dto';
+import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
 
 @Controller()
 export class UnilevelController {
@@ -92,7 +92,7 @@ export class UnilevelController {
   @MessagePattern({ cmd: 'unilevel.createPaymentSale' })
   async handleCreatePaymentSale(
     @Payload('saleId', ParseUUIDPipe) saleId: string,
-    @Payload() createPaymentSaleDto: CreatePaymentSaleDto,
+    @Payload('payments') payments: CreateDetailPaymentDto[],
     @Payload('files') files: any[],
   ) {
     const deserializedFiles =
@@ -100,10 +100,9 @@ export class UnilevelController {
         ...file,
         buffer: Buffer.from(file.buffer, 'base64'),
       })) || [];
-
     return this.unilevelService.createPaymentSale(
       saleId,
-      createPaymentSaleDto,
+      payments,
       deserializedFiles,
     );
   }
@@ -112,7 +111,7 @@ export class UnilevelController {
   async handlePaidInstallments(
     @Payload('financingId', ParseUUIDPipe) financingId: string,
     @Payload('amountPaid') amountPaid: number,
-    @Payload('payments') payments: string[],
+    @Payload('payments') payments: CreateDetailPaymentDto[],
     @Payload('files') files: any[],
   ) {
     const deserializedFiles =
