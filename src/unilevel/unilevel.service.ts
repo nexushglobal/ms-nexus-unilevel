@@ -22,6 +22,7 @@ import { formatSaleResponse } from './helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
 import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
+import { LotTransactionRole } from './enums/lot-transaction-role.enum';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -131,9 +132,14 @@ export class UnilevelService extends BaseService<Sale> {
 
   async createSale(createSaleDto: CreateSaleDto): Promise<SaleLoteResponse> {
     const { userId, ...rest } = createSaleDto;
+    const lotTransactionRole =
+      createSaleDto.isSeller === false
+        ? LotTransactionRole.BUYER
+        : LotTransactionRole.SELLER;
     rest.metadata = rest.metadata || {
-      service: 'Nexus',
-      exteralUserId: userId,
+      Servicio: 'Nexus',
+      'ID de usuario externo': userId,
+      'Rol del usuario en la transacción': lotTransactionRole,
     };
     const saleHuertas = await this.httpAdapter.post<SaleResponse>(
       `${this.huertasApiUrl}/api/external/sales`,
@@ -148,6 +154,7 @@ export class UnilevelService extends BaseService<Sale> {
       amountInitial: saleHuertas.financing?.initialAmount,
       numberCoutes: saleHuertas.financing?.quantityCoutes,
       type: saleHuertas.type,
+      lotTransactionRole,
       status: saleHuertas.status,
       vendorId: userId,
       saleIdReference: saleHuertas.id,

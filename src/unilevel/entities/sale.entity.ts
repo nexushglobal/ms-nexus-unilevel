@@ -8,6 +8,7 @@ import {
 import { SaleType } from '../enums/sale-type.enum';
 import { StatusSale } from '../enums/status-sale.enum';
 import { CurrencyType } from '../enums/currency-type.enum';
+import { LotTransactionRole } from '../enums/lot-transaction-role.enum';
 
 @Entity('sale')
 export class Sale {
@@ -61,6 +62,13 @@ export class Sale {
     enum: SaleType,
   })
   type: SaleType;
+
+  @Column({
+    type: 'enum',
+    enum: LotTransactionRole,
+    default: LotTransactionRole.BUYER,
+  })
+  lotTransactionRole: LotTransactionRole;
 
   @Column({
     type: 'enum',

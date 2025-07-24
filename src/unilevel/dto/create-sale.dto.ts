@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -12,7 +14,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { SaleType } from '../enums/sale-type.enum';
 import { CreateDetailPaymentDto } from './create-detail-payment.dto';
 import { CreateFinancingInstallmentsDto } from './create-financing-installments.dto';
@@ -109,6 +111,11 @@ export class CreateSaleDto {
       'El número de cuotas de la habilitación urbana debe ser un número entero',
   })
   quantityHuCuotes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => (value === undefined ? true : value))
+  isSeller?: boolean;
 
   @IsObject()
   @IsOptional()

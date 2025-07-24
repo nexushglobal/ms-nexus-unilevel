@@ -14,5 +14,7 @@ export const formatSaleResponse = (sale: Sale): SaleLoteResponse => {
     status: sale.status,
     saleIdReference: sale.saleIdReference,
     vendorId: sale.vendorId,
+    lotTransactionRole: sale.lotTransactionRole,
+    createdAt: sale.createdAt,
   };
 };
