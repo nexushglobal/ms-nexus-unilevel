@@ -66,7 +66,7 @@ export class Sale {
   @Column({
     type: 'enum',
     enum: LotTransactionRole,
-    default: LotTransactionRole.BUYER,
+    default: LotTransactionRole.SELLER,
   })
   lotTransactionRole: LotTransactionRole;
 
