@@ -131,11 +131,9 @@ export class UnilevelService extends BaseService<Sale> {
   }
 
   async createSale(createSaleDto: CreateSaleDto): Promise<SaleLoteResponse> {
-    const { userId, ...rest } = createSaleDto;
+    const { userId, isSeller, ...rest } = createSaleDto;
     const lotTransactionRole =
-      createSaleDto.isSeller === false
-        ? LotTransactionRole.BUYER
-        : LotTransactionRole.SELLER;
+      isSeller === false ? LotTransactionRole.BUYER : LotTransactionRole.SELLER;
     rest.metadata = rest.metadata || {
       Servicio: 'Nexus',
       'ID de usuario externo': userId,
