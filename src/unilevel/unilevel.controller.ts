@@ -92,6 +92,7 @@ export class UnilevelController {
   @MessagePattern({ cmd: 'unilevel.createPaymentSale' })
   async handleCreatePaymentSale(
     @Payload('saleId', ParseUUIDPipe) saleId: string,
+    @Payload('saleIdReference', ParseUUIDPipe) saleIdReference: string,
     @Payload('payments') payments: CreateDetailPaymentDto[],
     @Payload('files') files: any[],
   ) {
@@ -102,6 +103,7 @@ export class UnilevelController {
       })) || [];
     return this.unilevelService.createPaymentSale(
       saleId,
+      saleIdReference,
       payments,
       deserializedFiles,
     );

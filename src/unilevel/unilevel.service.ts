@@ -210,6 +210,7 @@ export class UnilevelService extends BaseService<Sale> {
 
   async createPaymentSale(
     saleId: string,
+    saleIdReference: string,
     payments: CreateDetailPaymentDto[],
     files: Express.Multer.File[],
   ) {
@@ -227,7 +228,7 @@ export class UnilevelService extends BaseService<Sale> {
         queryRunner,
       );
       return this.httpAdapter.post(
-        `${this.huertasApiUrl}/api/external/payments/sale/${saleId}`,
+        `${this.huertasApiUrl}/api/external/payments/sale/${saleIdReference}`,
         formData,
         this.huertasApiKey,
       );
