@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { HttpAdapter } from 'src/common/interfaces/http-adapter.interface';
 import { ProjectListResponseDto } from './interfaces/project-list.dto';
 import { envs } from 'src/config/envs';
@@ -16,13 +16,16 @@ import { SaleResponse } from './interfaces/sale-response.interface';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sale } from './entities/sale.entity';
-import { DeepPartial, Repository } from 'typeorm';
+import { DeepPartial, QueryRunner, Repository } from 'typeorm';
 import { SaleLoteResponse } from './interfaces/sale-lote-response.interface';
 import { formatSaleResponse } from './helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
 import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
 import { LotTransactionRole } from './enums/lot-transaction-role.enum';
+import { TransactionService } from 'src/common/services/transaction.service';
+import { StatusSale } from './enums/status-sale.enum';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -32,6 +35,7 @@ export class UnilevelService extends BaseService<Sale> {
     @InjectRepository(Sale)
     private readonly saleRepository: Repository<Sale>,
     private readonly httpAdapter: HttpAdapter,
+    private readonly transactionService: TransactionService,
   ) {
     super(saleRepository);
     this.huertasApiUrl = envs.HUERTAS_API_URL;
@@ -164,10 +168,17 @@ export class UnilevelService extends BaseService<Sale> {
   async findAllSales(
     findAllSalesDto: FindAllSalesDto,
   ): Promise<Paginated<SaleLoteResponse>> {
-    const { userId, ...paginationDto } = findAllSalesDto;
-    const sales = await this.saleRepository.find({
-      where: { vendorId: userId },
-    });
+    const { userId, lotTransactionRole, ...paginationDto } = findAllSalesDto;
+    const queryBuilder = this.saleRepository
+      .createQueryBuilder('sale')
+      .where('sale.vendorId = :userId', { userId })
+      .orderBy('sale.createdAt', 'DESC');
+    if (lotTransactionRole)
+      queryBuilder.andWhere('sale.lotTransactionRole = :lotTransactionRole', {
+        lotTransactionRole,
+      });
+
+    const sales = await queryBuilder.getMany();
     const salesResponse = sales.map((sale) => formatSaleResponse(sale));
     return this.findAllBase(salesResponse, paginationDto);
   }
@@ -177,6 +188,24 @@ export class UnilevelService extends BaseService<Sale> {
       `${this.huertasApiUrl}/api/external/sales/${id}`,
       this.huertasApiKey,
     );
+  }
+
+  async updateStatusSale(
+    id: string,
+    status: StatusSale,
+    queryRunner?: QueryRunner,
+  ): Promise<Sale | null> {
+    const repository = queryRunner
+      ? this.saleRepository.manager.getRepository(Sale)
+      : this.saleRepository;
+    const sale = await repository.update({ id }, { status });
+    if (sale.affected === 0)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `LA venta a actualizar no se encuentra registrada`,
+      });
+    const updatedSale = await repository.findOne({ where: { id } });
+    return updatedSale;
   }
 
   async createPaymentSale(
@@ -191,11 +220,18 @@ export class UnilevelService extends BaseService<Sale> {
       const blob = new Blob([file.buffer], { type: file.mimetype });
       formData.append('files', blob, file.originalname);
     });
-    return this.httpAdapter.post(
-      `${this.huertasApiUrl}/api/external/payments/sale/${saleId}`,
-      formData,
-      this.huertasApiKey,
-    );
+    return this.transactionService.runInTransaction(async (queryRunner) => {
+      await this.updateStatusSale(
+        saleId,
+        StatusSale.PENDING_APPROVAL,
+        queryRunner,
+      );
+      return this.httpAdapter.post(
+        `${this.huertasApiUrl}/api/external/payments/sale/${saleId}`,
+        formData,
+        this.huertasApiKey,
+      );
+    });
   }
 
   paidInstallments(
@@ -205,16 +241,13 @@ export class UnilevelService extends BaseService<Sale> {
     files: Express.Multer.File[],
   ) {
     const formData = new FormData();
-
     formData.append('amountPaid', amountPaid.toString());
     formData.append('payments', JSON.stringify(payments));
-
     // Agregar archivos
     files.forEach((file) => {
       const blob = new Blob([file.buffer], { type: file.mimetype });
       formData.append('files', blob, file.originalname);
     });
-
     return this.httpAdapter.post(
       `${this.huertasApiUrl}/api/external/financing/installments/paid/${financingId}`,
       formData,
