@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ApiFetchAdapter } from './adapters/api-fetch.adapter';
 import { HttpAdapter } from './interfaces/http-adapter.interface';
 import { TransactionService } from './services/transaction.service';
+import { UserService } from './services/user.service';
+import { PointService } from './services/point.service';
 
 @Module({
   providers: [
@@ -10,7 +12,9 @@ import { TransactionService } from './services/transaction.service';
       useClass: ApiFetchAdapter,
     },
     TransactionService,
+    UserService,
+    PointService,
   ],
-  exports: [HttpAdapter, TransactionService],
+  exports: [HttpAdapter, TransactionService, UserService, PointService],
 })
 export class CommonModule {}
