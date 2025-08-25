@@ -52,8 +52,8 @@ export class UnilevelService extends BaseService<Sale> {
     private readonly pointService: PointService,
   ) {
     super(saleRepository);
-    this.huertasApiUrl = envs.HUERTAS_API_URL;
-    this.huertasApiKey = envs.HUERTAS_API_KEY;
+    this.huertasApiUrl = envs.UNILEVEL_HUERTAS_API_URL;
+    this.huertasApiKey = envs.UNILEVEL_HUERTAS_API_KEY;
   }
 
   async getProjects(): Promise<ProjectListResponseDto> {
@@ -247,7 +247,7 @@ export class UnilevelService extends BaseService<Sale> {
         });
       });
 
-      // Agregar usuario principal (recibe mitad del monto)
+      // Agregar usuario principal (recibe 100% del monto dividido en 50% LEFT y 50% RIGHT)
       const principalUserName = userInfo
         ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() ||
           'Usuario Principal'
@@ -255,14 +255,21 @@ export class UnilevelService extends BaseService<Sale> {
 
       const principalUserEmail = userInfo?.email || 'usuario@example.com';
 
-      // Usar la posición real del usuario, fallback a la lógica anterior
-      const userSite = userInfo?.position || (isSeller ? 'RIGHT' : 'LEFT');
-
+      // Asignar 50% al lado izquierdo
       userVolumeAssignments.push({
         userId: userId,
         userName: principalUserName,
         userEmail: principalUserEmail,
-        site: userSite,
+        site: 'LEFT',
+        volume: totalAmount / 2,
+      });
+
+      // Asignar 50% al lado derecho
+      userVolumeAssignments.push({
+        userId: userId,
+        userName: principalUserName,
+        userEmail: principalUserEmail,
+        site: 'RIGHT',
         volume: totalAmount / 2,
       });
 
@@ -435,5 +442,49 @@ export class UnilevelService extends BaseService<Sale> {
       formData,
       this.huertasApiKey,
     );
+  }
+
+  async getUserLotCounts(userId: string): Promise<{
+    purchased: number;
+    sold: number;
+  }> {
+    try {
+      this.logger.log(`Obteniendo conteo de lotes para usuario: ${userId}`);
+
+      const [purchasedCount, soldCount] = await Promise.all([
+        // Contar lotes comprados (como BUYER)
+        this.saleRepository.count({
+          where: {
+            vendorId: userId,
+            lotTransactionRole: LotTransactionRole.BUYER,
+          },
+        }),
+        // Contar lotes vendidos (como SELLER)
+        this.saleRepository.count({
+          where: {
+            vendorId: userId,
+            lotTransactionRole: LotTransactionRole.SELLER,
+          },
+        }),
+      ]);
+
+      this.logger.log(
+        `Usuario ${userId}: ${purchasedCount} comprados, ${soldCount} vendidos`,
+      );
+
+      return {
+        purchased: purchasedCount,
+        sold: soldCount,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error obteniendo conteo de lotes para usuario ${userId}:`,
+        error,
+      );
+      return {
+        purchased: 0,
+        sold: 0,
+      };
+    }
   }
 }

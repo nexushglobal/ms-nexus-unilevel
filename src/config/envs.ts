@@ -6,8 +6,8 @@ interface EnvVars {
   NODE_ENV: 'development' | 'production' | 'test';
   NATS_SERVERS: string;
   UNILEVEL_DATABASE_URL: string;
-  HUERTAS_API_URL: string;
-  HUERTAS_API_KEY: string;
+  UNILEVEL_HUERTAS_API_URL: string;
+  UNILEVEL_HUERTAS_API_KEY: string;
 }
 
 const envsSchema = joi
@@ -26,11 +26,14 @@ const envsSchema = joi
       .uri()
       .required()
       .description('Unilevel database connection URI'),
-    HUERTAS_API_URL: joi
+    UNILEVEL_HUERTAS_API_URL: joi
       .string()
       .required()
       .description('URL de la API de Huertas'),
-    HUERTAS_API_KEY: joi.string().required().description('API Key de Huertas'),
+    UNILEVEL_HUERTAS_API_KEY: joi
+      .string()
+      .required()
+      .description('API Key de Huertas'),
   })
   .unknown(true);
 

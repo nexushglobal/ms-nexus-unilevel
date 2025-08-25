@@ -129,4 +129,9 @@ export class UnilevelController {
       deserializedFiles,
     );
   }
+
+  @MessagePattern({ cmd: 'unilevel.getUserLotCounts' })
+  async getUserLotCounts(@Payload() data: { userId: string }) {
+    return this.unilevelService.getUserLotCounts(data.userId);
+  }
 }
