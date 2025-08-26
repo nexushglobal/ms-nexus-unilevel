@@ -134,4 +134,9 @@ export class UnilevelController {
   async getUserLotCounts(@Payload() data: { userId: string }) {
     return this.unilevelService.getUserLotCounts(data.userId);
   }
+
+  @MessagePattern({ cmd: 'unilevel.getUsersLotCountsBatch' })
+  async getUsersLotCountsBatch(@Payload() data: { userIds: string[] }) {
+    return this.unilevelService.getUsersLotCountsBatch(data.userIds);
+  }
 }

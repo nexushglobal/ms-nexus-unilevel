@@ -16,7 +16,7 @@ import { SaleResponse } from './interfaces/sale-response.interface';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Sale } from './entities/sale.entity';
-import { DeepPartial, QueryRunner, Repository } from 'typeorm';
+import { DeepPartial, In, QueryRunner, Repository } from 'typeorm';
 import { SaleLoteResponse } from './interfaces/sale-lote-response.interface';
 import { formatSaleResponse } from './helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
@@ -485,6 +485,81 @@ export class UnilevelService extends BaseService<Sale> {
         purchased: 0,
         sold: 0,
       };
+    }
+  }
+
+  async getUsersLotCountsBatch(userIds: string[]): Promise<{ [userId: string]: {
+    purchased: number;
+    sold: number;
+  } }> {
+    try {
+      this.logger.log(
+        `Obteniendo conteo de lotes para ${userIds.length} usuarios en lote`,
+      );
+
+      if (userIds.length === 0) {
+        return {};
+      }
+
+      const [purchasedSales, soldSales] = await Promise.all([
+        // Obtener todas las ventas como BUYER para los usuarios
+        this.saleRepository.find({
+          where: {
+            vendorId: In(userIds),
+            lotTransactionRole: LotTransactionRole.BUYER,
+          },
+          select: ['vendorId'],
+        }),
+        // Obtener todas las ventas como SELLER para los usuarios
+        this.saleRepository.find({
+          where: {
+            vendorId: In(userIds),
+            lotTransactionRole: LotTransactionRole.SELLER,
+          },
+          select: ['vendorId'],
+        }),
+      ]);
+
+      // Crear un mapa de resultados
+      const result: { [userId: string]: { purchased: number; sold: number } } = {};
+
+      // Inicializar todos los usuarios con 0
+      userIds.forEach(userId => {
+        result[userId] = { purchased: 0, sold: 0 };
+      });
+
+      // Contar lotes comprados
+      purchasedSales.forEach(sale => {
+        if (result[sale.vendorId]) {
+          result[sale.vendorId].purchased++;
+        }
+      });
+
+      // Contar lotes vendidos
+      soldSales.forEach(sale => {
+        if (result[sale.vendorId]) {
+          result[sale.vendorId].sold++;
+        }
+      });
+
+      this.logger.log(
+        `Procesados conteos de lotes para ${userIds.length} usuarios: ${purchasedSales.length} compras, ${soldSales.length} ventas`,
+      );
+
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Error obteniendo conteos de lotes en lote:`,
+        error,
+      );
+      
+      // En caso de error, retornar objeto con todos los usuarios en 0
+      const result: { [userId: string]: { purchased: number; sold: number } } = {};
+      userIds.forEach(userId => {
+        result[userId] = { purchased: 0, sold: 0 };
+      });
+      
+      return result;
     }
   }
 }
