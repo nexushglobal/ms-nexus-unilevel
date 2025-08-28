@@ -52,8 +52,8 @@ export class UnilevelService extends BaseService<Sale> {
     private readonly pointService: PointService,
   ) {
     super(saleRepository);
-    this.huertasApiUrl = envs.UNILEVEL_HUERTAS_API_URL;
-    this.huertasApiKey = envs.UNILEVEL_HUERTAS_API_KEY;
+    this.huertasApiUrl = envs.HUERTAS_API_URL;
+    this.huertasApiKey = envs.HUERTAS_API_KEY;
   }
 
   async getProjects(): Promise<ProjectListResponseDto> {
@@ -488,10 +488,12 @@ export class UnilevelService extends BaseService<Sale> {
     }
   }
 
-  async getUsersLotCountsBatch(userIds: string[]): Promise<{ [userId: string]: {
-    purchased: number;
-    sold: number;
-  } }> {
+  async getUsersLotCountsBatch(userIds: string[]): Promise<{
+    [userId: string]: {
+      purchased: number;
+      sold: number;
+    };
+  }> {
     try {
       this.logger.log(
         `Obteniendo conteo de lotes para ${userIds.length} usuarios en lote`,
@@ -521,22 +523,23 @@ export class UnilevelService extends BaseService<Sale> {
       ]);
 
       // Crear un mapa de resultados
-      const result: { [userId: string]: { purchased: number; sold: number } } = {};
+      const result: { [userId: string]: { purchased: number; sold: number } } =
+        {};
 
       // Inicializar todos los usuarios con 0
-      userIds.forEach(userId => {
+      userIds.forEach((userId) => {
         result[userId] = { purchased: 0, sold: 0 };
       });
 
       // Contar lotes comprados
-      purchasedSales.forEach(sale => {
+      purchasedSales.forEach((sale) => {
         if (result[sale.vendorId]) {
           result[sale.vendorId].purchased++;
         }
       });
 
       // Contar lotes vendidos
-      soldSales.forEach(sale => {
+      soldSales.forEach((sale) => {
         if (result[sale.vendorId]) {
           result[sale.vendorId].sold++;
         }
@@ -548,17 +551,15 @@ export class UnilevelService extends BaseService<Sale> {
 
       return result;
     } catch (error) {
-      this.logger.error(
-        `Error obteniendo conteos de lotes en lote:`,
-        error,
-      );
-      
+      this.logger.error(`Error obteniendo conteos de lotes en lote:`, error);
+
       // En caso de error, retornar objeto con todos los usuarios en 0
-      const result: { [userId: string]: { purchased: number; sold: number } } = {};
-      userIds.forEach(userId => {
+      const result: { [userId: string]: { purchased: number; sold: number } } =
+        {};
+      userIds.forEach((userId) => {
         result[userId] = { purchased: 0, sold: 0 };
       });
-      
+
       return result;
     }
   }
