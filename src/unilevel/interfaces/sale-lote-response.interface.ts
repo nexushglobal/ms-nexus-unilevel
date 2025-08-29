@@ -16,5 +16,6 @@ export interface SaleLoteResponse {
   saleIdReference: string;
   vendorId: string;
   lotTransactionRole: LotTransactionRole;
+  metadata?: Record<string, any>;
   createdAt: Date;
 }

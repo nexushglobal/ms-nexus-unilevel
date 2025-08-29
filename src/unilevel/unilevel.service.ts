@@ -27,15 +27,10 @@ import { TransactionService } from 'src/common/services/transaction.service';
 import { StatusSale } from './enums/status-sale.enum';
 import { RpcException } from '@nestjs/microservices';
 import { UserService } from 'src/common/services/user.service';
-import {
-  PointService,
-  CreateMonthlyVolumeRequest,
-} from 'src/common/services/point.service';
-import { VolumeAssignment } from 'src/common/interfaces/volume.interface';
-import {
-  UserWithPosition,
-  ActiveAncestorWithMembership,
-} from 'src/common/interfaces/user.interface';
+import { PointService } from 'src/common/services/point.service';
+import { MembershipService } from 'src/common/services/membership.service';
+import { CommissionService } from 'src/common/services/commission.service';
+import { VolumeService } from 'src/common/services/volume.service';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -50,6 +45,9 @@ export class UnilevelService extends BaseService<Sale> {
     private readonly transactionService: TransactionService,
     private readonly userService: UserService,
     private readonly pointService: PointService,
+    private readonly membershipService: MembershipService,
+    private readonly commissionService: CommissionService,
+    private readonly volumeService: VolumeService,
   ) {
     super(saleRepository);
     this.huertasApiUrl = envs.HUERTAS_API_URL;
@@ -149,7 +147,7 @@ export class UnilevelService extends BaseService<Sale> {
   }
 
   async createSale(createSaleDto: CreateSaleDto): Promise<SaleLoteResponse> {
-    const { userId, isSeller, totalAmount, ...rest } = createSaleDto;
+    const { userId, isSeller, projectName, ...rest } = createSaleDto;
     const lotTransactionRole =
       isSeller === false ? LotTransactionRole.BUYER : LotTransactionRole.SELLER;
     rest.metadata = rest.metadata || {
@@ -179,178 +177,39 @@ export class UnilevelService extends BaseService<Sale> {
         saleIdReference: saleHuertas.id,
       } as DeepPartial<Sale>);
 
-      const newSale = await this.saleRepository.save(sale);
+      return await this.transactionService.runInTransaction(
+        async (queryRunner) => {
+          // 1. Procesar comisiones y puntos directos primero
+          const commissionMetadata =
+            await this.commissionService.processCommissionsForSale(
+              userId,
+              isSeller || true,
+              rest.totalAmount,
+              projectName,
+              rest.saleType,
+            );
+          // 2. Crear la venta con metadata incluida
+          const saleWithMetadata = this.saleRepository.create({
+            ...sale,
+            metadata: commissionMetadata,
+          } as DeepPartial<Sale>);
 
-      // Procesar volumen mensual para ancestros
-      await this.processMonthlyVolumeForSale(
-        userId,
-        isSeller || true,
-        totalAmount,
-        newSale.id,
+          const newSale = await queryRunner.manager.save(saleWithMetadata);
+
+          // 3. Procesar volumen mensual para el usuario
+          await this.volumeService.processMonthlyVolumeForSale(
+            userId,
+            isSeller || true,
+            rest.totalAmount,
+            newSale.id,
+          );
+          return formatSaleResponse(newSale);
+        },
       );
-
-      return formatSaleResponse(newSale);
     } catch (error) {
       this.logger.error('Error creating sale:', error);
       throw error;
     }
-  }
-
-  private async processMonthlyVolumeForSale(
-    userId: string,
-    isSeller: boolean,
-    totalAmount: number,
-    saleId: string,
-  ): Promise<void> {
-    try {
-      this.logger.log(
-        `Procesando volumen mensual para venta - Usuario: ${userId}, Rol: ${isSeller ? 'VENDEDOR' : 'COMPRADOR'}, Monto: ${totalAmount}`,
-      );
-
-      // 1. Obtener ancestros del usuario principal
-      const userAncestors = await this.userService
-        .getActiveAncestorsWithMembership(userId)
-        .catch((error) => {
-          this.logger.warn(
-            `No se pudieron obtener ancestros para usuario ${userId}:`,
-            error,
-          );
-          return [] as ActiveAncestorWithMembership[];
-        });
-
-      this.logger.log(
-        `Encontrados ${userAncestors.length} ancestros para usuario ${userId}`,
-      );
-
-      // 2. Obtener información del usuario principal con su posición
-      const userInfo = await this.userService
-        .getUserWithPosition(userId)
-        .catch((error) => {
-          this.logger.warn(
-            `No se pudo obtener información del usuario ${userId}:`,
-            error,
-          );
-          return null as UserWithPosition | null;
-        });
-
-      // 3. Preparar asignaciones de volumen
-      const userVolumeAssignments: VolumeAssignment[] = [];
-
-      // Agregar ancestros (reciben monto completo)
-      userAncestors.forEach((ancestor) => {
-        userVolumeAssignments.push({
-          userId: ancestor.userId,
-          userName: ancestor.userName,
-          userEmail: ancestor.userEmail,
-          site: ancestor.site,
-          volume: totalAmount,
-        });
-      });
-
-      // Agregar usuario principal (recibe 100% del monto dividido en 50% LEFT y 50% RIGHT)
-      const principalUserName = userInfo
-        ? `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() ||
-          'Usuario Principal'
-        : 'Usuario Principal';
-
-      const principalUserEmail = userInfo?.email || 'usuario@example.com';
-
-      // Asignar 50% al lado izquierdo
-      userVolumeAssignments.push({
-        userId: userId,
-        userName: principalUserName,
-        userEmail: principalUserEmail,
-        site: 'LEFT',
-        volume: totalAmount / 2,
-      });
-
-      // Asignar 50% al lado derecho
-      userVolumeAssignments.push({
-        userId: userId,
-        userName: principalUserName,
-        userEmail: principalUserEmail,
-        site: 'RIGHT',
-        volume: totalAmount / 2,
-      });
-
-      // 4. Procesar volúmenes (agrupados por volumen para optimizar)
-      await this.processVolumeGroups(userVolumeAssignments, saleId);
-    } catch (error) {
-      this.logger.error('Error procesando volumen mensual:', error);
-      // No lanzamos error para no fallar la venta, solo logueamos
-    }
-  }
-
-  private async processVolumeGroups(
-    assignments: VolumeAssignment[],
-    saleId: string,
-  ): Promise<void> {
-    if (assignments.length === 0) {
-      this.logger.log('No hay asignaciones de volumen mensual para procesar');
-      return;
-    }
-
-    this.logger.log(
-      `Enviando ${assignments.length} asignaciones de volumen mensual`,
-    );
-
-    // Agrupar usuarios por volumen para optimizar las llamadas
-    const volumeGroups = new Map<number, typeof assignments>();
-
-    assignments.forEach((assignment) => {
-      const volume = assignment.volume;
-      if (!volumeGroups.has(volume)) {
-        volumeGroups.set(volume, []);
-      }
-      volumeGroups.get(volume)!.push(assignment);
-    });
-
-    let totalProcessed = 0;
-    let totalFailed = 0;
-
-    // Procesar cada grupo de volumen
-    for (const [volume, groupAssignments] of volumeGroups) {
-      try {
-        this.logger.log(
-          `Procesando ${groupAssignments.length} usuarios con volumen ${volume}`,
-        );
-
-        const monthlyVolumeRequest: CreateMonthlyVolumeRequest = {
-          amount: volume,
-          volume: volume,
-          users: groupAssignments.map((assignment) => ({
-            userId: assignment.userId,
-            userName: assignment.userName,
-            userEmail: assignment.userEmail,
-            site: assignment.site,
-            paymentId: `SALE_${saleId}`,
-          })),
-        };
-
-        const result =
-          await this.pointService.createMonthlyVolume(monthlyVolumeRequest);
-
-        totalProcessed += result.processed?.length || 0;
-        totalFailed += result.failed?.length || 0;
-
-        if (result.failed?.length > 0) {
-          this.logger.warn(
-            `Volúmenes fallidos para grupo de volumen ${volume}:`,
-            result.failed,
-          );
-        }
-      } catch (error) {
-        this.logger.error(
-          `Error procesando grupo de volumen ${volume}:`,
-          error,
-        );
-        totalFailed += groupAssignments.length;
-      }
-    }
-
-    this.logger.log(
-      `Volumen mensual total procesado: ${totalProcessed} exitosos, ${totalFailed} fallidos`,
-    );
   }
 
   async findAllSales(
@@ -390,7 +249,7 @@ export class UnilevelService extends BaseService<Sale> {
     if (sale.affected === 0)
       throw new RpcException({
         status: HttpStatus.NOT_FOUND,
-        message: `LA venta a actualizar no se encuentra registrada`,
+        message: `Ls venta a actualizar no se encuentra registrada`,
       });
     const updatedSale = await repository.findOne({ where: { id } });
     return updatedSale;

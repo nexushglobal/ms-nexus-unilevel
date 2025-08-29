@@ -91,6 +91,12 @@ export class Sale {
   })
   vendorId: string;
 
+  @Column({
+    type: 'json',
+    nullable: true,
+  })
+  metadata?: Record<string, any>;
+
   @CreateDateColumn()
   createdAt: Date;
 

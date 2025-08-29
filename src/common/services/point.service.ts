@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MessagingService } from 'src/messaging/messaging.service';
+import {
+  CreateDirectBonusRequest,
+  DirectBonusResponse,
+} from '../interfaces/user.interface';
 
 export interface MonthlyVolumeUserAssignment {
   userId: string;
@@ -48,6 +52,15 @@ export class PointService {
   ): Promise<CreateMonthlyVolumeResponse> {
     return this.pointsClient.send<CreateMonthlyVolumeResponse>(
       { cmd: 'monthlyVolume.createMonthlyVolume' },
+      request,
+    );
+  }
+
+  async createDirectBonus(
+    request: CreateDirectBonusRequest,
+  ): Promise<DirectBonusResponse> {
+    return this.pointsClient.send<DirectBonusResponse>(
+      { cmd: 'userPoints.createDirectBonus' },
       request,
     );
   }

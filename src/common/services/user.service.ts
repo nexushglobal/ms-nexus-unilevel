@@ -4,6 +4,7 @@ import {
   UserBasicInfo,
   UserWithPosition,
   ActiveAncestorWithMembership,
+  ParentChainUser,
 } from '../interfaces/user.interface';
 import { MessagingService } from 'src/messaging/messaging.service';
 
@@ -32,6 +33,13 @@ export class UserService {
   async getUserWithPosition(userId: string): Promise<UserWithPosition> {
     return this.usersClient.send<UserWithPosition>(
       { cmd: 'users.getUserWithPosition' },
+      { userId },
+    );
+  }
+
+  async getParentChain(userId: string): Promise<ParentChainUser[]> {
+    return this.usersClient.send<ParentChainUser[]>(
+      { cmd: 'user.tree.getParentChain' },
       { userId },
     );
   }
