@@ -155,7 +155,7 @@ export class UnilevelService extends BaseService<Sale> {
       'ID de usuario externo': userId,
       'Rol del usuario en la transacción': lotTransactionRole,
     };
-
+    this.logger.log('PRojectName: ', projectName);
     try {
       const saleHuertas = await this.httpAdapter.post<SaleResponse>(
         `${this.huertasApiUrl}/api/external/sales`,
@@ -180,29 +180,29 @@ export class UnilevelService extends BaseService<Sale> {
       return await this.transactionService.runInTransaction(
         async (queryRunner) => {
           // 1. Procesar comisiones y puntos directos primero
-          const commissionMetadata =
-            await this.commissionService.processCommissionsForSale(
-              userId,
-              isSeller || true,
-              rest.totalAmount,
-              projectName,
-              rest.saleType,
-            );
+          // const commissionMetadata =
+          //   await this.commissionService.processCommissionsForSale(
+          //     userId,
+          //     isSeller || true,
+          //     rest.totalAmount,
+          //     projectName,
+          //     rest.saleType,
+          //   );
           // 2. Crear la venta con metadata incluida
           const saleWithMetadata = this.saleRepository.create({
             ...sale,
-            metadata: commissionMetadata,
+            // metadata: commissionMetadata,
           } as DeepPartial<Sale>);
 
           const newSale = await queryRunner.manager.save(saleWithMetadata);
 
           // 3. Procesar volumen mensual para el usuario
-          await this.volumeService.processMonthlyVolumeForSale(
-            userId,
-            isSeller || true,
-            rest.totalAmount,
-            newSale.id,
-          );
+          // await this.volumeService.processMonthlyVolumeForSale(
+          //   userId,
+          //   isSeller || true,
+          //   rest.totalAmount,
+          //   newSale.id,
+          // );
           return formatSaleResponse(newSale);
         },
       );
@@ -257,7 +257,6 @@ export class UnilevelService extends BaseService<Sale> {
 
   async createPaymentSale(
     saleId: string,
-    saleIdReference: string,
     payments: CreateDetailPaymentDto[],
     files: Express.Multer.File[],
   ) {
@@ -274,8 +273,11 @@ export class UnilevelService extends BaseService<Sale> {
         StatusSale.PENDING_APPROVAL,
         queryRunner,
       );
+      const sale = await this.saleRepository.findOne({
+        where: { id: saleId },
+      });
       return this.httpAdapter.post(
-        `${this.huertasApiUrl}/api/external/payments/sale/${saleIdReference}`,
+        `${this.huertasApiUrl}/api/external/payments/sale/${sale?.saleIdReference}`,
         formData,
         this.huertasApiKey,
       );
