@@ -274,7 +274,7 @@ export class UnilevelService extends BaseService<Sale> {
         queryRunner,
       );
       const sale = await this.saleRepository.findOne({
-        where: { id: saleId },
+        where: { saleIdReference: saleId },
       });
       return this.httpAdapter.post(
         `${this.huertasApiUrl}/api/external/payments/sale/${sale?.saleIdReference}`,
