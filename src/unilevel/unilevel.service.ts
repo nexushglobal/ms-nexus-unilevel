@@ -155,6 +155,7 @@ export class UnilevelService extends BaseService<Sale> {
       'ID de usuario externo': userId,
       'Rol del usuario en la transacción': lotTransactionRole,
     };
+    rest.initialAmount = rest.initialAmount ? rest.initialAmount : 0;
     this.logger.log('PRojectName: ', projectName);
     try {
       const saleHuertas = await this.httpAdapter.post<SaleResponse>(
