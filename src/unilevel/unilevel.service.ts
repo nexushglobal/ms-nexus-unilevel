@@ -268,16 +268,21 @@ export class UnilevelService extends BaseService<Sale> {
       formData.append('files', blob, file.originalname);
     });
     return this.transactionService.runInTransaction(async (queryRunner) => {
-      await this.updateStatusSale(
-        saleId,
-        StatusSale.PENDING_APPROVAL,
-        queryRunner,
-      );
       const sale = await this.saleRepository.findOne({
         where: { saleIdReference: saleId },
       });
+      if (!sale)
+        throw new RpcException({
+          status: HttpStatus.NOT_FOUND,
+          message: `La venta no se encuentra registrada`,
+        });
+      await this.updateStatusSale(
+        sale.id,
+        StatusSale.PENDING_APPROVAL,
+        queryRunner,
+      );
       return this.httpAdapter.post(
-        `${this.huertasApiUrl}/api/external/payments/sale/${sale?.saleIdReference}`,
+        `${this.huertasApiUrl}/api/external/payments/sale/${sale.saleIdReference}`,
         formData,
         this.huertasApiKey,
       );
