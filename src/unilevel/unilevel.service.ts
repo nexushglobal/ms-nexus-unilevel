@@ -7,7 +7,11 @@ import { BlockResponse } from './interfaces/block-response.interface';
 import { LotResponse } from './interfaces/lot-response.interface';
 import { FindAllLotsDto } from './dto/find-all-lots.dto';
 import { LotDetailResponseDto } from './interfaces/lot-detail-response.dto';
-import { Paginated } from 'src/common/dto/paginated.dto';
+import {
+  Paginated,
+  PaginatedNexus,
+  PaginationNexusMeta,
+} from 'src/common/dto/paginated.dto';
 import { CalculateAmortizationResponse } from './interfaces/calculate-amortization-response.interface';
 import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
 import { ClientAndGuarantorResponse } from './interfaces/client-and-guarantor-response.interface';
@@ -84,7 +88,7 @@ export class UnilevelService extends BaseService<Sale> {
 
   async findLotsByProjectId(
     findAllLotsDto: FindAllLotsDto,
-  ): Promise<Paginated<LotDetailResponseDto>> {
+  ): Promise<PaginatedNexus<LotDetailResponseDto>> {
     const { projectId, ...rest } = findAllLotsDto;
     const queryParams = new URLSearchParams();
     if (rest.page) queryParams.append('page', rest.page.toString());
@@ -99,10 +103,21 @@ export class UnilevelService extends BaseService<Sale> {
     const url = queryString
       ? `${this.huertasApiUrl}/api/external/projects/${projectId}/lots?${queryString}`
       : `${this.huertasApiUrl}/api/external/projects/${projectId}/lots`;
-    return this.httpAdapter.get<Paginated<LotDetailResponseDto>>(
+    const res = await this.httpAdapter.get<Paginated<LotDetailResponseDto>>(
       url,
       this.huertasApiKey,
     );
+    const items = res.items || [];
+    const pagination: PaginationNexusMeta = {
+      page: rest.page || 1,
+      limit: rest.limit || 10,
+      total: res.meta?.totalItems || items.length,
+      totalPages: res.meta?.totalPages || 1,
+      hasNext: (rest.page || 1) < (res.meta?.totalPages || 1),
+      hasPrev: (rest.page || 1) > 1,
+    };
+    const result: PaginatedNexus<LotDetailResponseDto> = { items, pagination };
+    return result;
   }
 
   async calculeAmortization(
