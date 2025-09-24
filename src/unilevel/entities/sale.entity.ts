@@ -92,6 +92,13 @@ export class Sale {
   vendorId: string;
 
   @Column({
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  projectName?: string;
+
+  @Column({
     type: 'json',
     nullable: true,
   })

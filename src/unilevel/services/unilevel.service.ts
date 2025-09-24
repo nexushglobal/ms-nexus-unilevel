@@ -1,36 +1,33 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { HttpAdapter } from 'src/common/interfaces/http-adapter.interface';
-import { ProjectListResponseDto } from './interfaces/project-list.dto';
+import { ProjectListResponseDto } from './../interfaces/project-list.dto';
 import { envs } from 'src/config/envs';
-import { StageResponse } from './interfaces/stage-response.interface';
-import { BlockResponse } from './interfaces/block-response.interface';
-import { LotResponse } from './interfaces/lot-response.interface';
-import { FindAllLotsDto } from './dto/find-all-lots.dto';
-import { LotDetailResponseDto } from './interfaces/lot-detail-response.dto';
+import { StageResponse } from './../interfaces/stage-response.interface';
+import { BlockResponse } from './../interfaces/block-response.interface';
+import { LotResponse } from './../interfaces/lot-response.interface';
+import { FindAllLotsDto } from './../dto/find-all-lots.dto';
+import { LotDetailResponseDto } from './../interfaces/lot-detail-response.dto';
 import { Paginated } from 'src/common/dto/paginated.dto';
-import { CalculateAmortizationResponse } from './interfaces/calculate-amortization-response.interface';
-import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
-import { ClientAndGuarantorResponse } from './interfaces/client-and-guarantor-response.interface';
-import { CreateSaleDto } from './dto/create-sale.dto';
-import { SaleResponse } from './interfaces/sale-response.interface';
-import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
+import { CalculateAmortizationResponse } from './../interfaces/calculate-amortization-response.interface';
+import { CreateUpdateLeadDto } from './../dto/create-update-lead.dto';
+import { ClientAndGuarantorResponse } from './../interfaces/client-and-guarantor-response.interface';
+import { CreateSaleDto } from './../dto/create-sale.dto';
+import { SaleResponse } from './../interfaces/sale-response.interface';
+import { CreateClientAndGuarantorDto } from './../dto/create-client-and-guarantor.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Sale } from './entities/sale.entity';
-import { DeepPartial, In, QueryRunner, Repository } from 'typeorm';
-import { SaleLoteResponse } from './interfaces/sale-lote-response.interface';
-import { formatSaleResponse } from './helpers/format-sale-response.helper';
+import { Sale } from './../entities/sale.entity';
+import { DeepPartial, QueryRunner, Repository } from 'typeorm';
+import { SaleLoteResponse } from './../interfaces/sale-lote-response.interface';
+import { formatSaleResponse } from './../helpers/format-sale-response.helper';
 import { BaseService } from 'src/common/services/base.service';
-import { FindAllSalesDto } from './dto/find-all-sales.dto';
-import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
-import { LotTransactionRole } from './enums/lot-transaction-role.enum';
+import { FindAllSalesDto } from './../dto/find-all-sales.dto';
+import { CreateDetailPaymentDto } from './../dto/create-detail-payment.dto';
+import { LotTransactionRole } from './../enums/lot-transaction-role.enum';
 import { TransactionService } from 'src/common/services/transaction.service';
-import { StatusSale } from './enums/status-sale.enum';
+import { StatusSale } from './../enums/status-sale.enum';
 import { RpcException } from '@nestjs/microservices';
-import { UserService } from 'src/common/services/user.service';
-import { PointService } from 'src/common/services/point.service';
-import { MembershipService } from 'src/common/services/membership.service';
-import { CommissionService } from 'src/common/services/commission.service';
-import { VolumeService } from 'src/common/services/volume.service';
+import { UnilevelCustomService } from './unilevel-custom.service';
+import { SaleType } from '../enums/sale-type.enum';
 
 @Injectable()
 export class UnilevelService extends BaseService<Sale> {
@@ -43,11 +40,7 @@ export class UnilevelService extends BaseService<Sale> {
     private readonly saleRepository: Repository<Sale>,
     private readonly httpAdapter: HttpAdapter,
     private readonly transactionService: TransactionService,
-    private readonly userService: UserService,
-    private readonly pointService: PointService,
-    private readonly membershipService: MembershipService,
-    private readonly commissionService: CommissionService,
-    private readonly volumeService: VolumeService,
+    private readonly unilevelCustomService: UnilevelCustomService,
   ) {
     super(saleRepository);
     this.huertasApiUrl = envs.HUERTAS_API_URL;
@@ -147,7 +140,7 @@ export class UnilevelService extends BaseService<Sale> {
   }
 
   async createSale(createSaleDto: CreateSaleDto): Promise<SaleLoteResponse> {
-    const { userId, isSeller, projectName, ...rest } = createSaleDto;
+    const { userId, isSeller, ...rest } = createSaleDto;
     const lotTransactionRole =
       isSeller === false ? LotTransactionRole.BUYER : LotTransactionRole.SELLER;
     rest.metadata = rest.metadata || {
@@ -156,13 +149,16 @@ export class UnilevelService extends BaseService<Sale> {
       'Rol del usuario en la transacción': lotTransactionRole,
     };
     rest.initialAmount = rest.initialAmount ? rest.initialAmount : 0;
-    this.logger.log('PRojectName: ', projectName);
     try {
       const saleHuertas = await this.httpAdapter.post<SaleResponse>(
         `${this.huertasApiUrl}/api/external/sales`,
         rest,
         this.huertasApiKey,
       );
+      const statusSale =
+        rest.saleType === SaleType.FINANCED
+          ? StatusSale.PENDING_APPROVAL
+          : StatusSale.PENDING;
 
       const sale = this.saleRepository.create({
         clientFullName: `${saleHuertas.client.firstName} ${saleHuertas.client.lastName}`,
@@ -173,40 +169,58 @@ export class UnilevelService extends BaseService<Sale> {
         numberCoutes: saleHuertas.financing?.quantityCoutes,
         type: saleHuertas.type,
         lotTransactionRole,
-        status: saleHuertas.status,
+        status: statusSale,
         vendorId: userId,
         saleIdReference: saleHuertas.id,
       } as DeepPartial<Sale>);
 
-      return await this.transactionService.runInTransaction(
+      const newSale = await this.transactionService.runInTransaction(
         async (queryRunner) => {
-          // 1. Procesar comisiones y puntos directos primero
-          // const commissionMetadata =
-          //   await this.commissionService.processCommissionsForSale(
-          //     userId,
-          //     isSeller || true,
-          //     rest.totalAmount,
-          //     projectName,
-          //     rest.saleType,
-          //   );
-          // 2. Crear la venta con metadata incluida
+          // Crear la venta sin procesar comisiones ni volúmenes
+          // (estos se procesan cuando se aprueba el pago via webhook)
           const saleWithMetadata = this.saleRepository.create({
             ...sale,
-            // metadata: commissionMetadata,
           } as DeepPartial<Sale>);
 
           const newSale = await queryRunner.manager.save(saleWithMetadata);
-
-          // 3. Procesar volumen mensual para el usuario
-          // await this.volumeService.processMonthlyVolumeForSale(
-          //   userId,
-          //   isSeller || true,
-          //   rest.totalAmount,
-          //   newSale.id,
-          // );
           return formatSaleResponse(newSale);
         },
       );
+      if (
+        saleHuertas.financing &&
+        Number(saleHuertas.financing.initialAmount) === 0
+      ) {
+        this.logger.log(
+          `Creando pago automático para venta financiada con amount 0: ${saleHuertas.id}`,
+        );
+
+        const paymentDto: CreateDetailPaymentDto = {
+          bankName: 'NEXUS',
+          transactionReference: `NEXUS REFERENCE`,
+          transactionDate: new Date().toISOString(),
+          amount: 0,
+          fileIndex: 0,
+        };
+        const defaultImageFile =
+          await this.unilevelCustomService.createNexusBrandImageFile();
+
+        try {
+          await this.createPaymentSale(
+            saleHuertas.id,
+            [paymentDto],
+            [defaultImageFile],
+          );
+          this.logger.log(
+            `Pago automático creado exitosamente para venta: ${saleHuertas.id}`,
+          );
+        } catch (paymentError) {
+          this.logger.error(
+            `Error creando pago automático para venta ${saleHuertas.id}:`,
+            paymentError,
+          );
+        }
+      }
+      return newSale;
     } catch (error) {
       this.logger.error('Error creating sale:', error);
       throw error;
@@ -260,6 +274,7 @@ export class UnilevelService extends BaseService<Sale> {
     saleId: string,
     payments: CreateDetailPaymentDto[],
     files: Express.Multer.File[],
+    queryRunner?: QueryRunner,
   ) {
     const formData = new FormData();
     formData.append('payments', JSON.stringify(payments));
@@ -268,26 +283,24 @@ export class UnilevelService extends BaseService<Sale> {
       const blob = new Blob([file.buffer as any], { type: file.mimetype });
       formData.append('files', blob, file.originalname);
     });
-    return this.transactionService.runInTransaction(async (queryRunner) => {
-      const sale = await this.saleRepository.findOne({
-        where: { saleIdReference: saleId },
-      });
-      if (!sale)
-        throw new RpcException({
-          status: HttpStatus.NOT_FOUND,
-          message: `La venta no se encuentra registrada`,
-        });
-      await this.updateStatusSale(
-        sale.id,
-        StatusSale.PENDING_APPROVAL,
-        queryRunner,
-      );
-      return this.httpAdapter.post(
-        `${this.huertasApiUrl}/api/external/payments/sale/${sale.saleIdReference}`,
-        formData,
-        this.huertasApiKey,
-      );
+    const sale = await this.saleRepository.findOne({
+      where: { saleIdReference: saleId },
     });
+    if (!sale)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `La venta no se encuentra registrada`,
+      });
+    await this.updateStatusSale(
+      sale.id,
+      StatusSale.PENDING_APPROVAL,
+      queryRunner,
+    );
+    return this.httpAdapter.post(
+      `${this.huertasApiUrl}/api/external/payments/sale/${sale.saleIdReference}`,
+      formData,
+      this.huertasApiKey,
+    );
   }
 
   paidInstallments(
@@ -309,125 +322,5 @@ export class UnilevelService extends BaseService<Sale> {
       formData,
       this.huertasApiKey,
     );
-  }
-
-  async getUserLotCounts(userId: string): Promise<{
-    purchased: number;
-    sold: number;
-  }> {
-    try {
-      this.logger.log(`Obteniendo conteo de lotes para usuario: ${userId}`);
-
-      const [purchasedCount, soldCount] = await Promise.all([
-        // Contar lotes comprados (como BUYER)
-        this.saleRepository.count({
-          where: {
-            vendorId: userId,
-            lotTransactionRole: LotTransactionRole.BUYER,
-          },
-        }),
-        // Contar lotes vendidos (como SELLER)
-        this.saleRepository.count({
-          where: {
-            vendorId: userId,
-            lotTransactionRole: LotTransactionRole.SELLER,
-          },
-        }),
-      ]);
-
-      this.logger.log(
-        `Usuario ${userId}: ${purchasedCount} comprados, ${soldCount} vendidos`,
-      );
-
-      return {
-        purchased: purchasedCount,
-        sold: soldCount,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Error obteniendo conteo de lotes para usuario ${userId}:`,
-        error,
-      );
-      return {
-        purchased: 0,
-        sold: 0,
-      };
-    }
-  }
-
-  async getUsersLotCountsBatch(userIds: string[]): Promise<{
-    [userId: string]: {
-      purchased: number;
-      sold: number;
-    };
-  }> {
-    try {
-      this.logger.log(
-        `Obteniendo conteo de lotes para ${userIds.length} usuarios en lote`,
-      );
-
-      if (userIds.length === 0) {
-        return {};
-      }
-
-      const [purchasedSales, soldSales] = await Promise.all([
-        // Obtener todas las ventas como BUYER para los usuarios
-        this.saleRepository.find({
-          where: {
-            vendorId: In(userIds),
-            lotTransactionRole: LotTransactionRole.BUYER,
-          },
-          select: ['vendorId'],
-        }),
-        // Obtener todas las ventas como SELLER para los usuarios
-        this.saleRepository.find({
-          where: {
-            vendorId: In(userIds),
-            lotTransactionRole: LotTransactionRole.SELLER,
-          },
-          select: ['vendorId'],
-        }),
-      ]);
-
-      // Crear un mapa de resultados
-      const result: { [userId: string]: { purchased: number; sold: number } } =
-        {};
-
-      // Inicializar todos los usuarios con 0
-      userIds.forEach((userId) => {
-        result[userId] = { purchased: 0, sold: 0 };
-      });
-
-      // Contar lotes comprados
-      purchasedSales.forEach((sale) => {
-        if (result[sale.vendorId]) {
-          result[sale.vendorId].purchased++;
-        }
-      });
-
-      // Contar lotes vendidos
-      soldSales.forEach((sale) => {
-        if (result[sale.vendorId]) {
-          result[sale.vendorId].sold++;
-        }
-      });
-
-      this.logger.log(
-        `Procesados conteos de lotes para ${userIds.length} usuarios: ${purchasedSales.length} compras, ${soldSales.length} ventas`,
-      );
-
-      return result;
-    } catch (error) {
-      this.logger.error(`Error obteniendo conteos de lotes en lote:`, error);
-
-      // En caso de error, retornar objeto con todos los usuarios en 0
-      const result: { [userId: string]: { purchased: number; sold: number } } =
-        {};
-      userIds.forEach((userId) => {
-        result[userId] = { purchased: 0, sold: 0 };
-      });
-
-      return result;
-    }
   }
 }

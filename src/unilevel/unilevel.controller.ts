@@ -3,18 +3,25 @@
 import { Controller, ParseUUIDPipe } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import { FindAllLotsDto } from './dto/find-all-lots.dto';
-import { UnilevelService } from './unilevel.service';
 import { CalculateAmortizationDto } from './dto/calculate-amortizacion-dto';
 import { CreateUpdateLeadDto } from './dto/create-update-lead.dto';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { CreateClientAndGuarantorDto } from './dto/create-client-and-guarantor.dto';
 import { FindAllSalesDto } from './dto/find-all-sales.dto';
 import { CreateDetailPaymentDto } from './dto/create-detail-payment.dto';
+import { PaymentApprovedNotificationDto } from './dto/payment-approved-notification.dto';
+import { UnilevelService } from './services/unilevel.service';
+import { UnilevelCustomService } from './services/unilevel-custom.service';
+import { PaymentNotificationService } from './services/payment-notification.service';
 
 @Controller()
 export class UnilevelController {
-  private readonly EXTERNAL_USER_ID = '3f9f5e47-bfe5-4e85-b9b2-f4cd20e5e3a4';
-  constructor(private unilevelService: UnilevelService) {}
+  // private readonly EXTERNAL_USER_ID = '3f9f5e47-bfe5-4e85-b9b2-f4cd20e5e3a4';
+  constructor(
+    private readonly unilevelService: UnilevelService,
+    private readonly unilevelCustomService: UnilevelCustomService,
+    private readonly paymentNotificationService: PaymentNotificationService,
+  ) {}
 
   @MessagePattern({ cmd: 'unilevel.getProjects' })
   async projects() {
@@ -130,11 +137,21 @@ export class UnilevelController {
 
   @MessagePattern({ cmd: 'unilevel.getUserLotCounts' })
   async getUserLotCounts(@Payload() data: { userId: string }) {
-    return this.unilevelService.getUserLotCounts(data.userId);
+    return this.unilevelCustomService.getUserLotCounts(data.userId);
   }
 
   @MessagePattern({ cmd: 'unilevel.getUsersLotCountsBatch' })
   async getUsersLotCountsBatch(@Payload() data: { userIds: string[] }) {
-    return this.unilevelService.getUsersLotCountsBatch(data.userIds);
+    return this.unilevelCustomService.getUsersLotCountsBatch(data.userIds);
+  }
+
+  // ============= PAYMENT NOTIFICATIONS =============
+  @MessagePattern({ cmd: 'unilevel.payment.approved' })
+  async handlePaymentApprovedNotification(
+    @Payload() notificationData: PaymentApprovedNotificationDto,
+  ) {
+    return this.paymentNotificationService.handlePaymentApproved(
+      notificationData,
+    );
   }
 }
