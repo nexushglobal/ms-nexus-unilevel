@@ -9,3 +9,17 @@ export class PaginationMeta {
   totalPages: number;
   currentPage: number;
 }
+
+export class PaginatedNexus<T> {
+  items: T[];
+  pagination: PaginationNexusMeta;
+}
+
+export class PaginationNexusMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
