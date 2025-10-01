@@ -36,6 +36,7 @@ async function bootstrap() {
   console.log(
     `🚀 Microservice Unilevel running with NATS on ${envs.NATS_SERVERS}`,
   );
+  console.log(`🏗 Service name: ${SERVICE_NAME}`);
 }
 
 bootstrap().catch((err) => {
