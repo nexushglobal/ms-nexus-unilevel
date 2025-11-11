@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   IsArray,
@@ -133,9 +131,6 @@ export class CreateSaleDto {
   @IsOptional()
   quantitySaleCoutes?: number;
 
-  @IsOptional()
-  reservationId?: string;
-
   @IsString()
   @IsOptional()
   paymentReference?: string;
@@ -186,10 +181,10 @@ export class CreateSaleDto {
   @Type(() => Boolean)
   applyLateFee?: boolean;
 
-  @IsString({
-    message: 'El nombre del proyecto debe ser una cadena de caracteres',
-  })
-  @IsNotEmpty({ message: 'El nombre del proyecto es requerido' })
-  @Transform(({ value }) => value?.toString().toUpperCase())
-  projectName: string;
+  // @IsString({
+  //   message: 'El nombre del proyecto debe ser una cadena de caracteres',
+  // })
+  // @IsNotEmpty({ message: 'El nombre del proyecto es requerido' })
+  // @Transform(({ value }) => value?.toString().toUpperCase())
+  // projectName: string;
 }
