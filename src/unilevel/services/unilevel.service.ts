@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { HttpAdapter } from 'src/common/interfaces/http-adapter.interface';
 import { ProjectListResponseDto } from './../interfaces/project-list.dto';
@@ -7,13 +6,14 @@ import { StageResponse } from './../interfaces/stage-response.interface';
 import { BlockResponse } from './../interfaces/block-response.interface';
 import { LotResponse } from './../interfaces/lot-response.interface';
 import { FindAllLotsDto } from './../dto/find-all-lots.dto';
+import { CalculateAmortizationDto } from './../dto/calculate-amortizacion-dto';
 import { LotDetailResponseDto } from './../interfaces/lot-detail-response.dto';
 import {
   Paginated,
   PaginatedNexus,
   PaginationNexusMeta,
 } from 'src/common/dto/paginated.dto';
-import { CalculateAmortizationResponse } from './../interfaces/calculate-amortization-response.interface';
+import { CombinedAmortizationResponse } from './../interfaces/combined-amortization-response.interface';
 import { CreateUpdateLeadDto } from './../dto/create-update-lead.dto';
 import { ClientAndGuarantorResponse } from './../interfaces/client-and-guarantor-response.interface';
 import { CreateSaleDto } from './../dto/create-sale.dto';
@@ -115,24 +115,11 @@ export class UnilevelService extends BaseService<Sale> {
   }
 
   async calculeAmortization(
-    totalAmount: number,
-    initialAmount: number,
-    reservationAmount: number,
-    interestRate: number,
-    numberOfPayments: number,
-    firstPaymentDate: string,
-  ): Promise<CalculateAmortizationResponse> {
-    const data = {
-      totalAmount,
-      initialAmount,
-      reservationAmount,
-      interestRate,
-      numberOfPayments,
-      firstPaymentDate,
-    };
-    return this.httpAdapter.post<CalculateAmortizationResponse>(
+    calculateDto: CalculateAmortizationDto,
+  ): Promise<CombinedAmortizationResponse> {
+    return this.httpAdapter.post<CombinedAmortizationResponse>(
       `${this.huertasApiUrl}/api/external/calculate/amortization`,
-      data,
+      calculateDto,
       this.huertasApiKey,
     );
   }

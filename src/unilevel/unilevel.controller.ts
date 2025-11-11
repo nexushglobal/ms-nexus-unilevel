@@ -53,14 +53,7 @@ export class UnilevelController {
   async calculateAmortization(
     @Payload() calculateDto: CalculateAmortizationDto,
   ) {
-    return this.unilevelService.calculeAmortization(
-      calculateDto.totalAmount,
-      calculateDto.initialAmount,
-      calculateDto.reservationAmount || 0,
-      calculateDto.interestRate,
-      calculateDto.numberOfPayments,
-      calculateDto.firstPaymentDate,
-    );
+    return this.unilevelService.calculeAmortization(calculateDto);
   }
 
   // ============= LEADS =============
