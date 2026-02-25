@@ -213,7 +213,7 @@ export class CommissionService {
   ): Promise<void> {
     // Preparar usuarios para puntos directos (solo los que comisionan)
     const usersForDirectBonus = commissionResults
-      .filter((result) => result.tier > 1 && result.commissionAmount > 0) // Solo padres que comisionan
+      .filter((result) => result.commissionAmount > 0)
       .map(
         (result): DirectBonusUser => ({
           userId: result.userId,
