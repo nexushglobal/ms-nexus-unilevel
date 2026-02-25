@@ -22,6 +22,7 @@ const RESERVATION_STATUSES: StatusSale[] = [
 const COMMISSION_STATUSES: StatusSale[] = [
   StatusSale.APPROVED,
   StatusSale.IN_PAYMENT_PROCESS,
+  StatusSale.COMPLETED,
 ];
 
 @Injectable()
