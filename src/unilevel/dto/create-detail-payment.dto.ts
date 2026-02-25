@@ -17,6 +17,10 @@ export class CreateDetailPaymentDto {
   @IsNotEmpty({ message: 'La referencia de transacción es requerida' })
   transactionReference: string;
 
+  @IsString()
+  @IsOptional()
+  codeOperation?: string;
+
   @IsDateString({}, { message: 'La fecha de transacción debe ser válida' })
   @IsNotEmpty({ message: 'La fecha de transacción es requerida' })
   transactionDate: string;

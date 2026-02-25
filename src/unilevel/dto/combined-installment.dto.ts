@@ -35,11 +35,11 @@ export class CombinedInstallmentDto {
   @Type(() => Number)
   huInstallmentNumber?: number | null;
 
-  @IsNotEmpty({ message: 'El monto total de la cuota es requerido' })
+  @IsOptional()
   @IsNumber(
     {},
     { message: 'El monto total de la cuota debe ser un número' },
   )
   @Type(() => Number)
-  totalInstallmentAmount: number;
+  totalInstallmentAmount?: number;
 }

@@ -158,23 +158,36 @@ export class UnilevelService extends BaseService<Sale> {
         rest,
         this.huertasApiKey,
       );
-      const statusSale =
-        rest.saleType === SaleType.FINANCED
-          ? StatusSale.PENDING_APPROVAL
-          : StatusSale.PENDING;
+      const statusSale = rest.isReservation
+        ? StatusSale.RESERVATION_PENDING
+        : StatusSale.PENDING;
 
       const sale = this.saleRepository.create({
         clientFullName: `${saleHuertas.client.firstName} ${saleHuertas.client.lastName}`,
         phone: saleHuertas.client.phone,
         currency: saleHuertas.currency,
         amount: saleHuertas.totalAmount,
-        amountInitial: saleHuertas.financing?.initialAmount,
-        numberCoutes: saleHuertas.financing?.quantityCoutes,
+        amountInitial: saleHuertas.financing?.lot?.initialAmount,
+        numberCoutes: saleHuertas.financing?.lot?.quantityCoutes,
         type: saleHuertas.type,
         lotTransactionRole,
         status: statusSale,
         vendorId: userId,
         saleIdReference: saleHuertas.id,
+        // Montos de reserva
+        reservationAmount: saleHuertas.reservationAmount,
+        reservationAmountPaid: saleHuertas.reservationAmountPaid ?? 0,
+        reservationAmountPending:
+          saleHuertas.reservationAmountPending ?? saleHuertas.reservationAmount,
+        // Montos totales
+        totalAmountPaid: saleHuertas.totalAmountPaid ?? 0,
+        totalAmountPending:
+          saleHuertas.totalAmountPending ?? saleHuertas.totalAmount,
+        // Montos de inicial (financiado)
+        initialAmountPaid: saleHuertas.financing?.lot?.initialAmountPaid ?? 0,
+        initialAmountPending:
+          saleHuertas.financing?.lot?.initialAmountPending ??
+          saleHuertas.financing?.lot?.initialAmount,
       } as DeepPartial<Sale>);
 
       const newSale = await this.transactionService.runInTransaction(
@@ -190,8 +203,8 @@ export class UnilevelService extends BaseService<Sale> {
         },
       );
       if (
-        saleHuertas.financing &&
-        Number(saleHuertas.financing.initialAmount) === 0
+        saleHuertas.financing?.lot &&
+        Number(saleHuertas.financing.lot.initialAmount) === 0
       ) {
         this.logger.log(
           `Creando pago automático para venta financiada con amount 0: ${saleHuertas.id}`,
@@ -294,11 +307,16 @@ export class UnilevelService extends BaseService<Sale> {
         status: HttpStatus.NOT_FOUND,
         message: `La venta no se encuentra registrada`,
       });
-    await this.updateStatusSale(
-      sale.id,
-      StatusSale.PENDING_APPROVAL,
-      queryRunner,
-    );
+    const isReservationPhase = [
+      StatusSale.RESERVATION_PENDING,
+      StatusSale.RESERVATION_IN_PAYMENT,
+    ].includes(sale.status);
+
+    const paymentStatus = isReservationPhase
+      ? StatusSale.RESERVATION_PENDING_APPROVAL
+      : StatusSale.PENDING_APPROVAL;
+
+    await this.updateStatusSale(sale.id, paymentStatus, queryRunner);
     return this.httpAdapter.post(
       `${this.huertasApiUrl}/api/external/payments/sale/${sale.saleIdReference}`,
       formData,

@@ -1,5 +1,7 @@
 import {
+  IsArray,
   IsEmail,
+  IsObject,
   IsOptional,
   IsString,
   IsNumber,
@@ -9,9 +11,13 @@ import {
   MaxLength,
   IsEnum,
   IsBoolean,
+  ValidateNested,
+  ArrayMaxSize,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { DocumentType } from '../enums/document-type.enum';
+import { CompanionDto } from './companion.dto';
+
 export class CreateUpdateLeadDto {
   @IsString()
   @MaxLength(100, { message: 'El nombre no puede tener más de 100 caracteres' })
@@ -77,6 +83,24 @@ export class CreateUpdateLeadDto {
     message: 'Las observaciones no pueden tener más de 500 caracteres',
   })
   observations?: string;
+
+  @IsOptional()
+  @IsArray({ message: 'Los proyectos de interés deben ser un arreglo' })
+  @IsString({ each: true })
+  @ArrayMaxSize(10, {
+    message: 'Los proyectos de interés no pueden ser más de 10',
+  })
+  interestProjects?: string[];
+
+  @IsOptional()
+  @IsArray({ message: 'Los acompañantes deben ser un arreglo' })
+  @ValidateNested({ each: true })
+  @Type(() => CompanionDto)
+  companions?: CompanionDto[];
+
+  @IsOptional()
+  @IsObject({ message: 'La metadata debe ser un objeto' })
+  metadata?: Record<string, any>;
 
   @IsOptional()
   @IsBoolean()

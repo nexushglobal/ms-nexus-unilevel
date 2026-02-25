@@ -15,6 +15,13 @@ export const formatSaleResponse = (sale: Sale): SaleLoteResponse => {
     saleIdReference: sale.saleIdReference,
     vendorId: sale.vendorId,
     lotTransactionRole: sale.lotTransactionRole,
+    reservationAmount: sale.reservationAmount,
+    reservationAmountPaid: sale.reservationAmountPaid,
+    reservationAmountPending: sale.reservationAmountPending,
+    totalAmountPaid: sale.totalAmountPaid,
+    totalAmountPending: sale.totalAmountPending,
+    initialAmountPaid: sale.initialAmountPaid,
+    initialAmountPending: sale.initialAmountPending,
     metadata: sale.metadata,
     createdAt: sale.createdAt,
   };

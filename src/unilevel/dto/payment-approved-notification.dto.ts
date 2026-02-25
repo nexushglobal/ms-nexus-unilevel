@@ -5,14 +5,20 @@ import {
   IsOptional,
   IsUUID,
   IsDateString,
+  IsEnum,
 } from 'class-validator';
+import { StatusSale } from '../enums/status-sale.enum';
+import { PaymentAction } from '../enums/payment-action.enum';
 
 export class PaymentApprovedNotificationDto {
   @IsUUID()
   saleId: string;
 
-  @IsString()
-  status: string;
+  @IsEnum(StatusSale, { message: 'El estado de venta debe ser un valor válido' })
+  newStatus: StatusSale;
+
+  @IsEnum(PaymentAction, { message: 'La acción debe ser APPROVED o REJECTED' })
+  action: PaymentAction;
 
   @IsOptional()
   @IsNumber()
@@ -29,13 +35,4 @@ export class PaymentApprovedNotificationDto {
   @IsOptional()
   @IsString()
   projectName?: string;
-
-  // Estos campos probablemente no los tendrás del webhook
-  @IsOptional()
-  @IsString()
-  userId?: string;
-
-  @IsOptional()
-  @IsString()
-  saleType?: string;
 }

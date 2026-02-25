@@ -16,6 +16,13 @@ export interface SaleLoteResponse {
   saleIdReference: string;
   vendorId: string;
   lotTransactionRole: LotTransactionRole;
+  reservationAmount?: number;
+  reservationAmountPaid?: number;
+  reservationAmountPending?: number;
+  totalAmountPaid?: number;
+  totalAmountPending?: number;
+  initialAmountPaid?: number;
+  initialAmountPending?: number;
   metadata?: Record<string, any>;
   createdAt: Date;
 }

@@ -98,6 +98,30 @@ export class Sale {
   })
   projectName?: string;
 
+  // Montos de reserva
+  @Column({ type: 'numeric', scale: 2, nullable: true })
+  reservationAmount?: number;
+
+  @Column({ type: 'numeric', scale: 2, nullable: true, default: 0 })
+  reservationAmountPaid?: number;
+
+  @Column({ type: 'numeric', scale: 2, nullable: true })
+  reservationAmountPending?: number;
+
+  // Montos totales de la venta (lote)
+  @Column({ type: 'numeric', scale: 2, nullable: true, default: 0 })
+  totalAmountPaid?: number;
+
+  @Column({ type: 'numeric', scale: 2, nullable: true })
+  totalAmountPending?: number;
+
+  // Montos de inicial (financiado)
+  @Column({ type: 'numeric', scale: 2, nullable: true, default: 0 })
+  initialAmountPaid?: number;
+
+  @Column({ type: 'numeric', scale: 2, nullable: true })
+  initialAmountPending?: number;
+
   @Column({
     type: 'json',
     nullable: true,

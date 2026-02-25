@@ -17,7 +17,7 @@ import {
 import { Transform, Type } from 'class-transformer';
 import { SaleType } from '../enums/sale-type.enum';
 import { CreateDetailPaymentDto } from './create-detail-payment.dto';
-import { CreateFinancingInstallmentsDto } from './create-financing-installments.dto';
+import { InterestRateSectionDto } from './interest-rate-section.dto';
 import { CombinedInstallmentDto } from './combined-installment.dto';
 
 export class CreateSaleDto {
@@ -126,10 +126,14 @@ export class CreateSaleDto {
   initialAmount?: number;
 
   @IsOptional()
-  interestRate?: number;
+  @IsArray({ message: 'Los tramos de tasa de interés deben ser un arreglo' })
+  @ValidateNested({ each: true })
+  @Type(() => InterestRateSectionDto)
+  interestRateSections?: InterestRateSectionDto[];
 
+  @IsString()
   @IsOptional()
-  quantitySaleCoutes?: number;
+  reservationId?: string;
 
   @IsString()
   @IsOptional()
@@ -142,12 +146,6 @@ export class CreateSaleDto {
   @IsOptional()
   @Type(() => CreateDetailPaymentDto)
   payments?: CreateDetailPaymentDto[];
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => CreateFinancingInstallmentsDto)
-  financingInstallments?: CreateFinancingInstallmentsDto[];
 
   @IsOptional()
   @IsArray()

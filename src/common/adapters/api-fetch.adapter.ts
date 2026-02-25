@@ -36,7 +36,7 @@ export class ApiFetchAdapter implements HttpAdapter {
   ): HeadersInit {
     const headers: HeadersInit = {};
     if (!isFormData) headers['Content-Type'] = 'application/json';
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    if (apiKey) headers['x-api-key'] = apiKey;
     return headers;
   }
 
