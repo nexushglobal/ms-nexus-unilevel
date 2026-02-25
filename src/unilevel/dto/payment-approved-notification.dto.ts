@@ -15,7 +15,7 @@ export class PaymentApprovedNotificationDto {
   saleId: string;
 
   @IsEnum(StatusSale, { message: 'El estado de venta debe ser un valor válido' })
-  newStatus: StatusSale;
+  saleStatus: StatusSale;
 
   @IsEnum(PaymentAction, { message: 'La acción debe ser APPROVED o REJECTED' })
   action: PaymentAction;

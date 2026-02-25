@@ -38,7 +38,7 @@ export class PaymentNotificationService {
     notificationData: PaymentApprovedNotificationDto,
   ): Promise<void> {
     this.logger.log(
-      `Recibida notificación de pago para venta: ${notificationData.saleId} | action: ${notificationData.action} | newStatus: ${notificationData.newStatus}`,
+      `Recibida notificación de pago para venta: ${notificationData.saleId} | action: ${notificationData.action} | saleStatus: ${notificationData.saleStatus}`,
     );
 
     return await this.transactionService.runInTransaction(
@@ -54,24 +54,24 @@ export class PaymentNotificationService {
             message: `Venta con ID ${notificationData.saleId} no encontrada`,
           });
 
-        const { newStatus, action, approvedAmount } = notificationData;
+        const { saleStatus, action, approvedAmount } = notificationData;
 
         // 2. Actualizar estado de la venta
         await queryRunner.manager.update(
           Sale,
           { id: sale.id },
-          { status: newStatus },
+          { status: saleStatus },
         );
 
         this.logger.log(
-          `Estado de venta ${notificationData.saleId} actualizado: ${sale.status} → ${newStatus}`,
+          `Estado de venta ${notificationData.saleId} actualizado: ${sale.status} → ${saleStatus}`,
         );
 
         // 3. Si fue aprobado y hay monto, actualizar tracking de montos
         if (action === PaymentAction.APPROVED && approvedAmount) {
           const amountUpdates = this.calculateAmountUpdates(
             sale,
-            newStatus,
+            saleStatus,
             approvedAmount,
           );
 
@@ -89,7 +89,7 @@ export class PaymentNotificationService {
         // 4. Procesar comisiones y volúmenes solo en estados finales
         if (
           action === PaymentAction.APPROVED &&
-          COMMISSION_STATUSES.includes(newStatus)
+          COMMISSION_STATUSES.includes(saleStatus)
         ) {
           await this.processCommissionsAndVolumes(sale, queryRunner);
         }
@@ -103,7 +103,7 @@ export class PaymentNotificationService {
 
   private calculateAmountUpdates(
     sale: Sale,
-    newStatus: StatusSale,
+    saleStatus: StatusSale,
     approvedAmount: number,
   ): Partial<Sale> {
     const isReservationPhase = RESERVATION_STATUSES.includes(sale.status);
