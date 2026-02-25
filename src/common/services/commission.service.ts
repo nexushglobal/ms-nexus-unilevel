@@ -221,6 +221,13 @@ export class CommissionService {
           userEmail: result.userEmail,
           directBonus: result.commissionAmount,
           type: 'DIRECT_BONUS',
+          metadata: {
+            tier: result.tier,
+            percentage: result.percentage,
+            amount: result.amount,
+            commissionAmount: result.commissionAmount,
+            source: 'sale_commission',
+          },
         }),
       );
 

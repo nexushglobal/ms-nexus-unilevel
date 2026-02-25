@@ -10,12 +10,11 @@ import { VolumeService } from '../../common/services/volume.service';
 import { LotTransactionRole } from '../enums/lot-transaction-role.enum';
 import { TransactionService } from '../../common/services/transaction.service';
 
-// Estados que pertenecen a la fase de reserva
-const RESERVATION_STATUSES: StatusSale[] = [
+// Estados donde el pago corresponde a la fase de reserva (excluyendo RESERVED que ya completó la reserva)
+const RESERVATION_PAYMENT_STATUSES: StatusSale[] = [
   StatusSale.RESERVATION_PENDING,
   StatusSale.RESERVATION_PENDING_APPROVAL,
   StatusSale.RESERVATION_IN_PAYMENT,
-  StatusSale.RESERVED,
 ];
 
 // Estados donde se procesan comisiones y volúmenes
@@ -37,7 +36,7 @@ export class PaymentNotificationService {
 
   async handlePaymentApproved(
     notificationData: PaymentApprovedNotificationDto,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; saleId: string; action: string; newStatus: string }> {
     this.logger.log(
       `Recibida notificación de pago para venta: ${notificationData.saleId} | action: ${notificationData.action} | saleStatus: ${notificationData.saleStatus}`,
     );
@@ -98,6 +97,13 @@ export class PaymentNotificationService {
         this.logger.log(
           `Notificación procesada exitosamente para venta: ${notificationData.saleId}`,
         );
+
+        return {
+          success: true,
+          saleId: notificationData.saleId,
+          action: action,
+          newStatus: saleStatus,
+        };
       },
     );
   }
@@ -107,7 +113,7 @@ export class PaymentNotificationService {
     saleStatus: StatusSale,
     approvedAmount: number,
   ): Partial<Sale> {
-    const isReservationPhase = RESERVATION_STATUSES.includes(sale.status);
+    const isReservationPhase = RESERVATION_PAYMENT_STATUSES.includes(sale.status);
 
     if (isReservationPhase) {
       // Pago de reserva
